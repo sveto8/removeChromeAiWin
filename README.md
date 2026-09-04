@@ -1,36 +1,36 @@
 # Chrome AI Cleaner
 
-Batch skripta (`removeChromeAi.bat`) za onemogucavanje ugradenih AI znacajki u Google Chromeu na Windowsu (Gemini, AI Mode, lokalni on-device AI model).
+Batch script (`removeChromeAi.bat`) to disable built‑in AI features in Google Chrome on Windows (Gemini, AI Mode, local on‑device AI model).
 
-## Sto skripta radi
+## What the script does
 
-1. **Zatvara Chrome** ako je pokrenut.
-2. **Radi backup postojecih Chrome registry policyja** (ako postoje) u `%USERPROFILE%\Desktop\Chrome_AI_Backup`, prije nego sto bilo sto mijenja.
-3. **Postavlja Chrome enterprise policye** koje trajno onemogucuju AI funkcije:
-   - `GenAILocalFoundationalModelSettings = 1` - iskljucuje lokalni (on-device) AI model
-   - `GeminiSettings = 1` - iskljucuje Gemini integraciju
-   - `AIModeSettings = 1` - iskljucuje AI Mode u pretrazivanju
-4. **Pronalazi i brise postojece lokalno preuzete AI model datoteke** (npr. `weights.bin` unutar `OptGuideOnDeviceModel`, `OnDeviceModel`, `OptimizationGuide` foldera) unutar Chrome profila, da se odmah oslobodi prostor na disku.
-5. **Ne dira** bookmarke, lozinke, povijest ni ekstenzije.
-6. Na kraju ispisuje trenutno stanje postavljenih policyja radi provjere.
+1. **Closes Chrome** if it is running.
+2. **Backs up existing Chrome registry policies** (if any) to `%USERPROFILE%\Desktop\Chrome_AI_Backup` before changing anything.
+3. **Sets Chrome enterprise policies** that permanently disable AI features:
+   - `GenAILocalFoundationalModelSettings = 1` – disables the local (on‑device) AI model
+   - `GeminiSettings = 1` – disables Gemini integration
+   - `AIModeSettings = 1` – disables AI Mode in search
+4. **Finds and deletes any existing locally downloaded AI model files** (e.g. `weights.bin` inside `OptGuideOnDeviceModel`, `OnDeviceModel`, `OptimizationGuide` folders) within Chrome profiles, to free up disk space immediately.
+5. **Does not touch** bookmarks, passwords, history, or extensions.
+6. At the end, it displays the current state of the set policies for verification.
 
-## Vazna napomena o disku
+## Important note about disk space
 
-Nakon brisanja, Chrome moze **ponovno preuzeti** AI model datoteke u pozadini (preko internog "Component Updater" mehanizma) kad se sljedeci put pokrene. To je normalno i **nije problem** - iako datoteka ponovno postoji na disku (obicno nekoliko stotina MB), AI funkcije ostaju neaktivne zbog postavljenih policyja iz koraka 3. Skripta se moze ponovno pokrenuti bilo kada da se ta datoteka opet obrise, ako smeta.
+After deletion, Chrome **may re‑download** the AI model files in the background (via the internal "Component Updater" mechanism) the next time it starts. This is normal and **not a problem** – even though the file reappears on disk (usually a few hundred MB), the AI features remain inactive because of the policies set in step 3. You can re‑run the script at any time to delete that file again if it bothers you.
 
-## Kako koristiti
+## How to use
 
-1. Preuzmi `removeChromeAi.bat`.
-2. Pokreni ga dvoklikom (skripta sama trazi Administrator prava i ponudi UAC prompt - klikni **Yes**).
-3. Prati upute na ekranu, pritisni bilo koju tipku kad se od tebe trazi.
-4. Nakon zavrsetka, otvori Chrome i idi na `chrome://policy`, pa klikni **Reload policies** da se promjene odmah primijene.
-5. Provjeri da je `GenAILocalFoundationalModelSettings` postavljen na `1`.
+1. Download `removeChromeAi.bat`.
+2. Double‑click to run it (the script will request Administrator privileges and show a UAC prompt – click **Yes**).
+3. Follow the on‑screen instructions, press any key when prompted.
+4. After completion, open Chrome and go to `chrome://policy`, then click **Reload policies** to apply the changes immediately.
+5. Verify that `GenAILocalFoundationalModelSettings` is set to `1`.
 
-## Zahtjevi
+## Requirements
 
-- Windows s instaliranim Google Chromeom
-- Administrator prava (skripta ih sama trazi)
+- Windows with Google Chrome installed
+- Administrator rights (the script requests them automatically)
 
-## Sigurnost
+## Safety
 
-Skripta mijenja samo Windows registry pod `HKLM\SOFTWARE\Policies\Google\Chrome` (standardna Chrome enterprise policy lokacija) i brise iskljucivo AI model datoteke unutar prepoznatih AI foldera u Chrome profilu. Ne dira druge dijelove sustava. Registry backup se automatski sprema prije bilo kakve izmjene, pa se promjene mogu rucno vratiti importanjem `.reg` datoteka iz backup mape ako je potrebno.
+The script only modifies the Windows registry under `HKLM\SOFTWARE\Policies\Google\Chrome` (the standard Chrome enterprise policy location) and deletes only AI model files inside recognised AI folders within the Chrome profile. It does not touch other parts of the system. A registry backup is automatically saved before any changes, so changes can be manually reverted by importing the `.reg` files from the backup folder if needed.
