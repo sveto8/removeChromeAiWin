@@ -4,7 +4,7 @@ title Chrome AI Cleaner
 
 :: ============================================================
 :: DISABLE QUICKEDIT MODE
-:: (sprjecava da klik/selekcija u prozoru zamrzne skriptu)
+:: (prevents clicking/selection in the window from freezing the script)
 :: ============================================================
 
 reg add "HKCU\Console" /v QuickEdit /t REG_DWORD /d 0 /f >nul 2>&1
@@ -18,15 +18,15 @@ echo ============================================================
 echo             GOOGLE CHROME - AI CLEANER - by Sveto
 echo ============================================================
 echo.
-echo Ova skripta ce:
+echo This script will:
 echo.
-echo   [1] Zatvoriti Chrome
-echo   [2] Napraviti Registry backup
-echo   [3] Onemoguciti lokalni Chrome AI model
-echo   [4] Onemoguciti Gemini / AI Mode
-echo   [5] Pronaci i obrisati postojece lokalne AI modele
+echo   [1] Close Chrome
+echo   [2] Create a Registry backup
+echo   [3] Disable the local Chrome AI model
+echo   [4] Disable Gemini / AI Mode
+echo   [5] Find and delete existing local AI models
 echo.
-echo Bookmarki, lozinke, povijest i ekstenzije se NE diraju.
+echo Bookmarks, passwords, history and extensions are NOT touched.
 echo.
 pause
 
@@ -38,8 +38,8 @@ net session >nul 2>&1
 
 if %errorlevel% neq 0 (
     echo.
-    echo Administrator prava nisu aktivna.
-    echo Pokrecem skriptu kao Administrator...
+    echo Administrator rights are not active.
+    echo Launching the script as Administrator...
     echo.
 
     powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -48,16 +48,16 @@ if %errorlevel% neq 0 (
     if !errorlevel! neq 0 (
         echo.
         echo ============================================================
-        echo [GRESKA] Elevacija nije uspjela.
+        echo [ERROR] Elevation failed.
         echo ============================================================
         echo.
-        echo Moguci razlozi:
-        echo   - Kliknuo/la si "No" na UAC prompt
-        echo   - UAC prompt je blokiran ili se otvorio iza drugih prozora
-        echo   - Antivirus / SmartScreen je blokirao PowerShell
+        echo Possible reasons:
+        echo   - You clicked "No" on the UAC prompt
+        echo   - The UAC prompt was blocked or opened behind other windows
+        echo   - Antivirus / SmartScreen blocked PowerShell
         echo.
-        echo Pokusaj ponovno i ovaj put klikni "Yes" na UAC prompt,
-        echo ili desni klik na ovu .bat datoteku i odaberi
+        echo Please try again and this time click "Yes" on the UAC prompt,
+        echo or right‑click this .bat file and select
         echo "Run as administrator".
         echo.
         pause
@@ -65,13 +65,13 @@ if %errorlevel% neq 0 (
     )
 
     echo.
-    echo Elevirani prozor je zavrsio. Zatvaram ovaj prozor za 3 sekunde...
+    echo The elevated window has finished. Closing this window in 3 seconds...
     timeout /t 3 /nobreak >nul
     exit /b 0
 )
 
 echo.
-echo [OK] Administrator prava potvrdena.
+echo [OK] Administrator rights confirmed.
 
 :: ============================================================
 :: VARIABLES
@@ -90,7 +90,7 @@ if not exist "%BACKUPDIR%" (
 
 echo.
 echo ============================================================
-echo [1/5] Zatvaranje Chromea
+echo [1/5] Closing Chrome
 echo ============================================================
 echo.
 
@@ -98,7 +98,7 @@ taskkill /F /IM chrome.exe >nul 2>&1
 
 timeout /t 3 /nobreak >nul
 
-echo [OK] Chrome je zatvoren.
+echo [OK] Chrome has been closed.
 
 :: ============================================================
 :: REGISTRY BACKUP
@@ -114,18 +114,18 @@ reg export "HKLM\SOFTWARE\Policies\Google\Chrome" ^
 "%BACKUPDIR%\Chrome_HKLM_Backup.reg" /y >nul 2>&1
 
 if exist "%BACKUPDIR%\Chrome_HKLM_Backup.reg" (
-    echo [OK] HKLM backup napravljen.
+    echo [OK] HKLM backup created.
 ) else (
-    echo [INFO] Nije postojao prethodni Chrome policy registry.
+    echo [INFO] No previous Chrome policy registry existed.
 )
 
 reg export "HKCU\Software\Policies\Google\Chrome" ^
 "%BACKUPDIR%\Chrome_HKCU_Backup.reg" /y >nul 2>&1
 
 if exist "%BACKUPDIR%\Chrome_HKCU_Backup.reg" (
-    echo [OK] HKCU backup napravljen.
+    echo [OK] HKCU backup created.
 ) else (
-    echo [INFO] Nije postojao prethodni Chrome policy registry.
+    echo [INFO] No previous Chrome policy registry existed.
 )
 
 :: ============================================================
@@ -134,7 +134,7 @@ if exist "%BACKUPDIR%\Chrome_HKCU_Backup.reg" (
 
 echo.
 echo ============================================================
-echo [3/5] Onemogucavanje Chrome AI funkcija
+echo [3/5] Disabling Chrome AI features
 echo ============================================================
 echo.
 
@@ -145,7 +145,7 @@ reg add "HKLM\SOFTWARE\Policies\Google\Chrome" ^
  /f
 
 echo.
-echo [OK] Lokalni GenAI model:
+echo [OK] Local GenAI model:
 echo      GenAILocalFoundationalModelSettings = 1
 
 reg add "HKLM\SOFTWARE\Policies\Google\Chrome" ^
@@ -174,12 +174,12 @@ echo      AIModeSettings = 1
 
 echo.
 echo ============================================================
-echo [4/5] Trazenje i brisanje lokalnih AI modela
+echo [4/5] Searching for and deleting local AI models
 echo ============================================================
 echo.
 
 if not exist "%CHROMEUSER%" (
-    echo [INFO] Chrome User Data mapa nije pronadena.
+    echo [INFO] Chrome User Data folder not found.
     goto FINISH
 )
 
@@ -191,19 +191,19 @@ echo.
 :: OptGuideOnDeviceModel
 :: ------------------------------------------------------------
 
-echo Trazenje: OptGuideOnDeviceModel
+echo Searching: OptGuideOnDeviceModel
 echo.
 
 for /d /r "%CHROMEUSER%" %%D in (OptGuideOnDeviceModel) do (
     if exist "%%D" (
         echo [FOUND] %%D
-        echo [DELETE] Brisem...
+        echo [DELETE] Deleting...
         rmdir /s /q "%%D" 2>nul
 
         if not exist "%%D" (
-            echo [OK] Obrisano.
+            echo [OK] Deleted.
         ) else (
-            echo [WARNING] Nije moguce obrisati.
+            echo [WARNING] Could not delete.
         )
 
         echo.
@@ -214,19 +214,19 @@ for /d /r "%CHROMEUSER%" %%D in (OptGuideOnDeviceModel) do (
 :: OnDeviceModel
 :: ------------------------------------------------------------
 
-echo Trazenje: OnDeviceModel
+echo Searching: OnDeviceModel
 echo.
 
 for /d /r "%CHROMEUSER%" %%D in (OnDeviceModel) do (
     if exist "%%D" (
         echo [FOUND] %%D
-        echo [DELETE] Brisem...
+        echo [DELETE] Deleting...
         rmdir /s /q "%%D" 2>nul
 
         if not exist "%%D" (
-            echo [OK] Obrisano.
+            echo [OK] Deleted.
         ) else (
-            echo [WARNING] Nije moguce obrisati.
+            echo [WARNING] Could not delete.
         )
 
         echo.
@@ -237,7 +237,7 @@ for /d /r "%CHROMEUSER%" %%D in (OnDeviceModel) do (
 :: OptimizationGuide model directories
 :: ------------------------------------------------------------
 
-echo Trazenje: OptimizationGuide
+echo Searching: OptimizationGuide
 echo.
 
 for /d /r "%CHROMEUSER%" %%D in (OptimizationGuide) do (
@@ -260,7 +260,7 @@ for /d /r "%CHROMEUSER%" %%D in (OptimizationGuide) do (
 :: ------------------------------------------------------------
 
 echo.
-echo Trazenje weights.bin AI modela...
+echo Searching for weights.bin AI models...
 echo.
 
 for /r "%CHROMEUSER%" %%F in (weights.bin) do (
@@ -270,13 +270,13 @@ for /r "%CHROMEUSER%" %%F in (weights.bin) do (
 
     if !errorlevel! equ 0 (
         echo [FOUND AI MODEL] %%F
-        echo [DELETE] Brisem...
+        echo [DELETE] Deleting...
         del /f /q "%%F" >nul 2>&1
 
         if not exist "%%F" (
-            echo [OK] Obrisano.
+            echo [OK] Deleted.
         ) else (
-            echo [WARNING] Nije moguce obrisati.
+            echo [WARNING] Could not delete.
         )
 
         echo.
@@ -291,12 +291,12 @@ for /r "%CHROMEUSER%" %%F in (weights.bin) do (
 
 echo.
 echo ============================================================
-echo [5/5] Provjera
+echo [5/5] Verification
 echo ============================================================
 echo.
 
 echo.
-echo Provjera Chrome policies:
+echo Checking Chrome policies:
 echo.
 
 reg query "HKLM\SOFTWARE\Policies\Google\Chrome" ^
@@ -310,35 +310,35 @@ reg query "HKLM\SOFTWARE\Policies\Google\Chrome" ^
 
 echo.
 echo ============================================================
-echo                       GOTOVO
+echo                       DONE
 echo ============================================================
 echo.
 
-echo Registry backup nalazi se ovdje:
+echo Registry backup is located at:
 echo.
 echo %BACKUPDIR%
 echo.
 
-echo Sada pokreni Chrome i otvori:
+echo Now start Chrome and open:
 echo.
 echo chrome://policy
 echo.
-echo Klikni:
+echo Click:
 echo.
 echo     Reload policies
 echo.
 echo.
-echo Za lokalni AI model provjeri:
+echo For the local AI model, verify:
 echo.
 echo     GenAILocalFoundationalModelSettings
 echo.
-echo Vrijednost mora biti:
+echo Its value must be:
 echo.
 echo     1
 echo.
 
 echo ============================================================
-echo		PS.	instaliraj linux    :P
+echo		PS. install linux    :P
 echo.
 pause
 
