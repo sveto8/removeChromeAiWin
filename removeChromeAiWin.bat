@@ -3,47 +3,20 @@ setlocal EnableExtensions EnableDelayedExpansion
 title Chrome AI Cleaner
 
 :: ============================================================
-:: DISABLE QUICKEDIT MODE
-:: (prevents clicking/selection in the window from freezing the script)
+:: ADMIN CHECK / AUTO ELEVATION (done first, so the intro
+:: screen is shown only once, in the elevated window)
 :: ============================================================
 
-reg add "HKCU\Console" /v QuickEdit /t REG_DWORD /d 0 /f >nul 2>&1
-
-:: ============================================================
-:: GOOGLE CHROME AI CLEANER
-:: ============================================================
-
-echo.
-echo ============================================================
-echo             GOOGLE CHROME - AI CLEANER - by Sveto
-echo ============================================================
-echo.
-echo This script will:
-echo.
-echo   [1] Close Chrome
-echo   [2] Create a Registry backup
-echo   [3] Disable the local Chrome AI model
-echo   [4] Disable Gemini / AI Mode
-echo   [5] Find and delete existing local AI models
-echo.
-echo Bookmarks, passwords, history and extensions are NOT touched.
-echo.
-pause
-
-:: ============================================================
-:: ADMIN CHECK / AUTO ELEVATION
-:: ============================================================
-
-net session >nul 2>&1
-
+fltmc >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
     echo Administrator rights are not active.
     echo Launching the script as Administrator...
     echo.
 
+    set "BATFILE=%~f0"
     powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-        "try { Start-Process -FilePath '%~f0' -Verb RunAs -Wait; exit 0 } catch { exit 1 }"
+        "try { Start-Process -FilePath $env:BATFILE -Verb RunAs -Wait; exit 0 } catch { exit 1 }"
 
     if !errorlevel! neq 0 (
         echo.
@@ -56,22 +29,36 @@ if %errorlevel% neq 0 (
         echo   - The UAC prompt was blocked or opened behind other windows
         echo   - Antivirus / SmartScreen blocked PowerShell
         echo.
-        echo Please try again and this time click "Yes" on the UAC prompt,
-        echo or right‑click this .bat file and select
+        echo Please try again and click "Yes" on the UAC prompt,
+        echo or right-click this .bat file and select
         echo "Run as administrator".
         echo.
         pause
         exit /b 1
     )
-
-    echo.
-    echo The elevated window has finished. Closing this window in 3 seconds...
-    timeout /t 3 /nobreak >nul
     exit /b 0
 )
 
+:: ============================================================
+:: INTRO
+:: ============================================================
+
 echo.
-echo [OK] Administrator rights confirmed.
+echo ============================================================
+echo             GOOGLE CHROME - AI CLEANER - by Sveto
+echo ============================================================
+echo.
+echo This script will:
+echo.
+echo   [1] Close Chrome
+echo   [2] Create a Registry backup
+echo   [3] Disable the local Chrome AI model, Gemini and AI Mode
+echo   [4] Find and delete existing local AI models
+echo   [5] Verify the result
+echo.
+echo Bookmarks, passwords, history and extensions are NOT touched.
+echo.
+pause
 
 :: ============================================================
 :: VARIABLES
@@ -79,13 +66,12 @@ echo [OK] Administrator rights confirmed.
 
 set "CHROMEUSER=%LOCALAPPDATA%\Google\Chrome\User Data"
 set "BACKUPDIR=%USERPROFILE%\Desktop\Chrome_AI_Backup"
+set "POLKEY=HKLM\SOFTWARE\Policies\Google\Chrome"
 
-if not exist "%BACKUPDIR%" (
-    mkdir "%BACKUPDIR%"
-)
+if not exist "%BACKUPDIR%" mkdir "%BACKUPDIR%"
 
 :: ============================================================
-:: CLOSE CHROME
+:: [1/5] CLOSE CHROME
 :: ============================================================
 
 echo.
@@ -95,13 +81,13 @@ echo ============================================================
 echo.
 
 taskkill /F /IM chrome.exe >nul 2>&1
-
 timeout /t 3 /nobreak >nul
-
 echo [OK] Chrome has been closed.
 
 :: ============================================================
-:: REGISTRY BACKUP
+:: [2/5] REGISTRY BACKUP
+:: An existing backup is NEVER overwritten, so re-running the
+:: script cannot replace your original settings with modified ones.
 :: ============================================================
 
 echo.
@@ -110,26 +96,11 @@ echo [2/5] Registry backup
 echo ============================================================
 echo.
 
-reg export "HKLM\SOFTWARE\Policies\Google\Chrome" ^
-"%BACKUPDIR%\Chrome_HKLM_Backup.reg" /y >nul 2>&1
-
-if exist "%BACKUPDIR%\Chrome_HKLM_Backup.reg" (
-    echo [OK] HKLM backup created.
-) else (
-    echo [INFO] No previous Chrome policy registry existed.
-)
-
-reg export "HKCU\Software\Policies\Google\Chrome" ^
-"%BACKUPDIR%\Chrome_HKCU_Backup.reg" /y >nul 2>&1
-
-if exist "%BACKUPDIR%\Chrome_HKCU_Backup.reg" (
-    echo [OK] HKCU backup created.
-) else (
-    echo [INFO] No previous Chrome policy registry existed.
-)
+call :BACKUP "HKLM\SOFTWARE\Policies\Google\Chrome" "%BACKUPDIR%\Chrome_HKLM_Backup.reg" HKLM
+call :BACKUP "HKCU\Software\Policies\Google\Chrome" "%BACKUPDIR%\Chrome_HKCU_Backup.reg" HKCU
 
 :: ============================================================
-:: CHROME POLICIES
+:: [3/5] CHROME POLICIES
 :: ============================================================
 
 echo.
@@ -138,38 +109,12 @@ echo [3/5] Disabling Chrome AI features
 echo ============================================================
 echo.
 
-reg add "HKLM\SOFTWARE\Policies\Google\Chrome" ^
- /v GenAILocalFoundationalModelSettings ^
- /t REG_DWORD ^
- /d 1 ^
- /f
-
-echo.
-echo [OK] Local GenAI model:
-echo      GenAILocalFoundationalModelSettings = 1
-
-reg add "HKLM\SOFTWARE\Policies\Google\Chrome" ^
- /v GeminiSettings ^
- /t REG_DWORD ^
- /d 1 ^
- /f
-
-echo.
-echo [OK] Gemini:
-echo      GeminiSettings = 1
-
-reg add "HKLM\SOFTWARE\Policies\Google\Chrome" ^
- /v AIModeSettings ^
- /t REG_DWORD ^
- /d 1 ^
- /f
-
-echo.
-echo [OK] AI Mode:
-echo      AIModeSettings = 1
+call :SETPOL GenAILocalFoundationalModelSettings "Local GenAI model"
+call :SETPOL GeminiSettings "Gemini"
+call :SETPOL AIModeSettings "AI Mode"
 
 :: ============================================================
-:: DELETE LOCAL AI MODELS
+:: [4/5] DELETE LOCAL AI MODELS
 :: ============================================================
 
 echo.
@@ -187,104 +132,39 @@ echo Chrome User Data:
 echo %CHROMEUSER%
 echo.
 
-:: ------------------------------------------------------------
-:: OptGuideOnDeviceModel
-:: ------------------------------------------------------------
-
-echo Searching: OptGuideOnDeviceModel
-echo.
-
-for /d /r "%CHROMEUSER%" %%D in (OptGuideOnDeviceModel) do (
-    if exist "%%D" (
-        echo [FOUND] %%D
-        echo [DELETE] Deleting...
-        rmdir /s /q "%%D" 2>nul
-
-        if not exist "%%D" (
-            echo [OK] Deleted.
-        ) else (
-            echo [WARNING] Could not delete.
-        )
-
-        echo.
-    )
-)
-
-:: ------------------------------------------------------------
-:: OnDeviceModel
-:: ------------------------------------------------------------
-
-echo Searching: OnDeviceModel
-echo.
-
-for /d /r "%CHROMEUSER%" %%D in (OnDeviceModel) do (
-    if exist "%%D" (
-        echo [FOUND] %%D
-        echo [DELETE] Deleting...
-        rmdir /s /q "%%D" 2>nul
-
-        if not exist "%%D" (
-            echo [OK] Deleted.
-        ) else (
-            echo [WARNING] Could not delete.
-        )
-
-        echo.
-    )
-)
-
-:: ------------------------------------------------------------
-:: OptimizationGuide model directories
-:: ------------------------------------------------------------
-
-echo Searching: OptimizationGuide
-echo.
-
-for /d /r "%CHROMEUSER%" %%D in (OptimizationGuide) do (
-    if exist "%%D" (
-        echo [FOUND] %%D
-        echo.
-
-        :: Only remove obvious model/cache subdirectories
-        for /d %%M in ("%%D\*model*" "%%D\*Model*" "%%D\*optimization*") do (
-            if exist "%%M" (
-                echo [DELETE] %%M
-                rmdir /s /q "%%M" 2>nul
+for %%N in (OptGuideOnDeviceModel OnDeviceModel) do (
+    echo Searching: %%N
+    for /f "delims=" %%D in ('dir /s /b /ad "%CHROMEUSER%\%%N" 2^>nul') do (
+        if exist "%%D" (
+            echo [FOUND]  %%D
+            rmdir /s /q "%%D" 2>nul
+            if not exist "%%D" (
+                echo [OK] Deleted.
+            ) else (
+                echo [WARNING] Could not delete.
             )
+            echo.
         )
     )
 )
 
-:: ------------------------------------------------------------
-:: weights.bin - only if path clearly belongs to AI model
-:: ------------------------------------------------------------
-
-echo.
-echo Searching for weights.bin AI models...
-echo.
-
-for /r "%CHROMEUSER%" %%F in (weights.bin) do (
-
-    echo %%F | findstr /I ^
-    "OptGuideOnDeviceModel OnDeviceModel OptimizationGuide" >nul
-
-    if !errorlevel! equ 0 (
-        echo [FOUND AI MODEL] %%F
-        echo [DELETE] Deleting...
+:: Safety net: weights.bin that is still inside a recognised AI folder
+echo Searching: leftover weights.bin
+for /f "delims=" %%F in ('dir /s /b /a-d "%CHROMEUSER%\weights.bin" 2^>nul ^| findstr /I "OptGuideOnDeviceModel OnDeviceModel"') do (
+    if exist "%%F" (
+        echo [FOUND]  %%F
         del /f /q "%%F" >nul 2>&1
-
         if not exist "%%F" (
             echo [OK] Deleted.
         ) else (
             echo [WARNING] Could not delete.
         )
-
         echo.
     )
 )
 
 :: ============================================================
-:: FINISH / POLICY VERIFICATION
+:: [5/5] VERIFICATION
 :: ============================================================
 
 :FINISH
@@ -295,51 +175,55 @@ echo [5/5] Verification
 echo ============================================================
 echo.
 
-echo.
-echo Checking Chrome policies:
-echo.
-
-reg query "HKLM\SOFTWARE\Policies\Google\Chrome" ^
- /v GenAILocalFoundationalModelSettings 2>nul
-
-reg query "HKLM\SOFTWARE\Policies\Google\Chrome" ^
- /v GeminiSettings 2>nul
-
-reg query "HKLM\SOFTWARE\Policies\Google\Chrome" ^
- /v AIModeSettings 2>nul
+reg query "%POLKEY%" /v GenAILocalFoundationalModelSettings 2>nul
+reg query "%POLKEY%" /v GeminiSettings 2>nul
+reg query "%POLKEY%" /v AIModeSettings 2>nul
 
 echo.
 echo ============================================================
 echo                       DONE
 echo ============================================================
 echo.
-
 echo Registry backup is located at:
+echo   %BACKUPDIR%
 echo.
-echo %BACKUPDIR%
+echo Now start Chrome, open chrome://policy and click "Reload policies".
+echo Each of these must have the value 1:
+echo   GenAILocalFoundationalModelSettings
+echo   GeminiSettings
+echo   AIModeSettings
 echo.
-
-echo Now start Chrome and open:
-echo.
-echo chrome://policy
-echo.
-echo Click:
-echo.
-echo     Reload policies
-echo.
-echo.
-echo For the local AI model, verify:
-echo.
-echo     GenAILocalFoundationalModelSettings
-echo.
-echo Its value must be:
-echo.
-echo     1
-echo.
-
 echo ============================================================
-echo		PS. install linux    :P
+echo   PS. install linux    :P
 echo.
 pause
-
 endlocal
+exit /b 0
+
+:: ============================================================
+:: SUBROUTINES
+:: ============================================================
+
+:BACKUP
+:: %1 = registry key, %2 = target .reg file, %3 = label
+if exist %2 (
+    echo [INFO] %~3 backup already exists, keeping the original.
+    exit /b 0
+)
+reg export %1 %2 /y >nul 2>&1
+if exist %2 (
+    echo [OK] %~3 backup created.
+) else (
+    echo [INFO] No previous %~3 Chrome policies existed, nothing to back up.
+)
+exit /b 0
+
+:SETPOL
+:: %1 = policy name, %~2 = description
+reg add "%POLKEY%" /v %1 /t REG_DWORD /d 1 /f >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Could not set %1
+) else (
+    echo [OK] %~2: %1 = 1
+)
+exit /b 0
