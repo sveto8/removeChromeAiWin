@@ -1,36 +1,48 @@
 # Chrome AI Cleaner
 
-Batch script (`removeChromeAi.bat`) to disable built‑in AI features in Google Chrome on Windows (Gemini, AI Mode, local on‑device AI model).
+Batch script (`removeChromeAiWin.bat`) that disables the built-in AI features in Google Chrome on Windows (Gemini, AI Mode, local on-device AI model) and deletes the already downloaded local model files.
 
 ## What the script does
 
-1. **Closes Chrome** if it is running.
-2. **Backs up existing Chrome registry policies** (if any) to `%USERPROFILE%\Desktop\Chrome_AI_Backup` before changing anything.
-3. **Sets Chrome enterprise policies** that permanently disable AI features:
-   - `GenAILocalFoundationalModelSettings = 1` – disables the local (on‑device) AI model
-   - `GeminiSettings = 1` – disables Gemini integration
-   - `AIModeSettings = 1` – disables AI Mode in search
-4. **Finds and deletes any existing locally downloaded AI model files** (e.g. `weights.bin` inside `OptGuideOnDeviceModel`, `OnDeviceModel`, `OptimizationGuide` folders) within Chrome profiles, to free up disk space immediately.
-5. **Does not touch** bookmarks, passwords, history, or extensions.
-6. At the end, it displays the current state of the set policies for verification.
+1. **Requests Administrator rights** (UAC prompt) and re-launches itself elevated if needed.
+2. **Closes Chrome** if it is running (`taskkill`, unsaved form data in open tabs can be lost).
+3. **Backs up existing Chrome policies** from the registry (`HKLM` and `HKCU`, only if they exist) to `%USERPROFILE%\Desktop\Chrome_AI_Backup`. An existing backup is **never overwritten**, so re-running the script cannot replace your original settings with the modified ones.
+4. **Sets Chrome policies** under `HKLM\SOFTWARE\Policies\Google\Chrome`:
+   - `GenAILocalFoundationalModelSettings = 1` - disables the local (on-device) AI model
+   - `GeminiSettings = 1` - disables Gemini integration
+   - `AIModeSettings = 1` - disables AI Mode in search
+5. **Finds and deletes local AI model folders** anywhere inside `%LOCALAPPDATA%\Google\Chrome\User Data`:
+   - `OptGuideOnDeviceModel`
+   - `OnDeviceModel`
+   - any leftover `weights.bin` located inside one of those folders
+6. **Verifies** the policies by querying the registry.
 
-## Important note about disk space
+Bookmarks, passwords, history and extensions are not touched.
 
-After deletion, Chrome **may re‑download** the AI model files in the background (via the internal "Component Updater" mechanism) the next time it starts. This is normal and **not a problem** – even though the file reappears on disk (usually a few hundred MB), the AI features remain inactive because of the policies set in step 3. You can re‑run the script at any time to delete that file again if it bothers you.
+## Notes
+
+- **Disk space:** Chrome may re-download the model in the background the next time it starts. With the policies set the AI features stay inactive, so this is harmless; re-run the script to remove the file again.
+- **"Managed by your organization":** because the policies are set via the registry, Chrome will show this notice in the menu and in `chrome://settings`. This is expected.
+- Only stable **Google Chrome** is handled (not Chrome Beta/Dev/Canary, Chromium or Edge).
+- Policies are set in `HKLM`, so they apply to all users on the machine.
 
 ## How to use
 
-1. Download `removeChromeAi.bat`.
-2. Double‑click to run it (the script will request Administrator privileges and show a UAC prompt – click **Yes**).
-3. Follow the on‑screen instructions, press any key when prompted.
-4. After completion, open Chrome and go to `chrome://policy`, then click **Reload policies** to apply the changes immediately.
-5. Verify that `GenAILocalFoundationalModelSettings` is set to `1`.
+1. Download `removeChromeAiWin.bat`.
+2. Double-click it (or right-click -> *Run as administrator*). Click **Yes** on the UAC prompt.
+3. Follow the on-screen instructions and press a key when prompted.
+4. Start Chrome, open `chrome://policy` and click **Reload policies**.
+5. Verify that `GenAILocalFoundationalModelSettings`, `GeminiSettings` and `AIModeSettings` are all set to `1`.
+
+## Reverting
+
+Delete the three values from `HKLM\SOFTWARE\Policies\Google\Chrome` (or the whole key if it did not exist before), or import the `.reg` files from `Desktop\Chrome_AI_Backup` if you had policies before. Note that a `.reg` import only adds/overwrites values, it does not delete the three values added by this script.
 
 ## Requirements
 
 - Windows with Google Chrome installed
-- Administrator rights (the script requests them automatically)
+- Administrator rights (requested automatically)
 
 ## Safety
 
-The script only modifies the Windows registry under `HKLM\SOFTWARE\Policies\Google\Chrome` (the standard Chrome enterprise policy location) and deletes only AI model files inside recognised AI folders within the Chrome profile. It does not touch other parts of the system. A registry backup is automatically saved before any changes, so changes can be manually reverted by importing the `.reg` files from the backup folder if needed.
+The script only writes to `HKLM\SOFTWARE\Policies\Google\Chrome` and only deletes folders named `OptGuideOnDeviceModel` / `OnDeviceModel` (and `weights.bin` inside them) within Chrome's `User Data` directory. Nothing else on the system is modified.
